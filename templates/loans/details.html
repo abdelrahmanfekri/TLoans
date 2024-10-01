@@ -1,0 +1,24 @@
+{%extends 'base.html'%} {%block title%}Loan Details{%endblock%} {%block
+content%}
+<h1>Loan Details</h1>
+<section class="mt-4">
+  <p><strong>Loan ID:</strong> {{ loan.id }}</p>
+  <p><strong>Loan Amount:</strong> ${{ loan.amount }}</p>
+  <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
+  <p><strong>Loan Term:</strong> {{ loan.term }} months</p>
+  <p><strong>Created:</strong> {{ loan.created }}</p>
+  <p><strong>Updated:</strong> {{ loan.updated }}</p>
+</section>
+<section class="mt-4">
+  <h2>Payments</h2>
+  <ul>
+    {% for payment in loan.amortization.all %}
+    <li>
+      <p><strong>Payment ID:</strong> {{ payment.id }}</p>
+      <p><strong>Payment Amount:</strong> ${{ payment.amount }}</p>
+      <p><strong>Payment Date:</strong> {{ payment.date }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{%endblock%}

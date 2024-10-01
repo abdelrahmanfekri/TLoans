@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %} Financial App{% endblock %}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100 min-h-screen flex flex-col">
+    <header class="bg-blue-600 text-white p-4">
+      <nav class="container mx-auto flex justify-between items-center">
+        <a href="/">
+          <h1 class="text-2xl font-bold">Financial App</h1>
+        </a>
+        {% if user.is_authenticated %}
+        <ul class="flex space-x-4">
+          <li>
+            <a href="{% url 'loans:list'%}" class="hover:underline">Loans</a>
+          </li>
+          <li>
+            <a href="{%url 'loans:create'%}" class="hover:underline"
+              >Create Loan</a
+            >
+          </li>
+          <li>
+            <a href="{%url 'users:logout'%}" class="hover:underline">Logout</a>
+          </li>
+        </ul>
+        {% else %}
+        <ul class="flex space-x-4">
+          <li>
+            <a href="{%url 'users:register'%}" class="hover:underline"
+              >Register</a
+            >
+          </li>
+          <li>
+            <a href="{%url 'users:login'%}" class="hover:underline">Login</a>
+          </li>
+        </ul>
+        {% endif %}
+      </nav>
+    </header>
+    <main class="container flex justify-center align-center mx-auto">
+      {% block content %} {% endblock %}
+    </main>
+  </body>
+</html>

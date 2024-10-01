@@ -1,0 +1,23 @@
+{%extends 'base.html'%} {%block title%}Loan List{%endblock%} {%block content%}
+<h1>Loan List</h1>
+<section class="mt-4">
+  <h2>Loans List</h2>
+  <ul>
+    {% for loan in loans %}
+    <li>
+      <p><strong>Loan ID:</strong> {{ loan.id }}</p>
+      <p><strong>Loan Amount:</strong> ${{ loan.amount }}</p>
+      <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
+      <p><strong>Loan Term:</strong> {{ loan.term }} months</p>
+      <p><strong>Created:</strong> {{ loan.created }}</p>
+      <p><strong>Updated:</strong> {{ loan.updated }}</p>
+      <a
+        href="{% url 'loans:details' loan.id %}"
+        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >Details</a
+      >
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{%endblock%}

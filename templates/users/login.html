@@ -1,0 +1,10 @@
+{%extends 'base.html'%} {%block title%}Login{%endblock%} {%block content%}
+<form class="mt-8" action="{% url 'users:login' %}" method="post">
+  {% csrf_token %} {{ form }}
+  <button
+    class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+  >
+    Login
+  </button>
+</form>
+{%endblock%}
