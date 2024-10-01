@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from .utils import create_amortization_schedule, calculate_loan_details
+from django.core.exceptions import ValidationError
 
 
 class LoanConfig(models.Model):
@@ -10,13 +12,26 @@ class LoanConfig(models.Model):
     min_loan_duration = models.PositiveIntegerField()
     interest_rate = models.DecimalField(max_digits=10, decimal_places=2)
 
-    # This is a singleton model
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super(LoanConfig, self).save(*args, **kwargs)
+    def clean(self):
+        if self.min_loan_amount >= self.max_loan_amount:
+            raise ValidationError(
+                "Minimum loan amount must be less than maximum loan amount."
+            )
+        if self.min_loan_duration >= self.max_loan_duration:
+            raise ValidationError(
+                "Minimum loan duration must be less than maximum loan duration."
+            )
 
-    def delete(self, *args, **kwargs):
-        pass
+    def save(self, *args, **kwargs):
+        if not self.pk and LoanConfig.objects.exists():
+            raise ValidationError("There can be only one LoanConfig instance.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        config, created = cls.objects.get_or_create(pk=1)
+        return config
 
 
 class Loan(models.Model):
@@ -63,7 +78,7 @@ class Loan(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk is None:
-            loan_config = LoanConfig.objects.first()
+            loan_config = LoanConfig.load()
             self.interest_rate = loan_config.interest_rate
             if (
                 self.amount < loan_config.min_loan_amount
@@ -77,6 +92,35 @@ class Loan(models.Model):
                 raise ValueError("Loan duration is not within the allowed range")
 
         super(Loan, self).save(*args, **kwargs)
+
+    def calculate_loan_details(self):
+        loan_details = calculate_loan_details(
+            self.amount, self.duration, self.interest_rate
+        )
+        self.monthly_payment = loan_details["monthly_payment"]
+        self.number_of_payments = loan_details["number_of_payments"]
+        self.rate_per_period = loan_details["rate_per_period"]
+        self.total_interest = loan_details["total_interest"]
+        self.save()
+
+    def create_amortization_schedule(self):
+        amortization_schedule = create_amortization_schedule(
+            self.amount, self.duration, self.interest_rate
+        )
+        amortization_objects = [
+            AmortizationSchedule(
+                loan=self,
+                year=year["year"],
+                cumulative_interest=year["cumulative_interest"],
+                cumulative_principal=year["cumulative_principal"],
+                balance=year["balance"],
+                cumulative_payment=year["cumulative_payment"],
+                yearly_payment=year["yearly_payment"],
+                yearly_interest=year["yearly_interest"],
+            )
+            for year in amortization_schedule
+        ]
+        AmortizationSchedule.objects.bulk_create(amortization_objects)
 
     def approve(self, user):
         if self.status != "pending":

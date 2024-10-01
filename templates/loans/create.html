@@ -1,12 +1,39 @@
-{%extends 'base.html'%} {%block title%}Submit a Loan{%endblock%} {%block
-content%}
+{%extends 'base.html'%} {%block title%}Create Loan{%endblock%} {%block content%}
 <h1>Submit a Loan</h1>
-<form class="mt-4" method="POST" action="{% url 'loans:create'}">
-  {% csrf_token %} {{ form.as_p }}
-  <button
-    class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-  >
-    Submit
-  </button>
-</form>
+<div>
+  loan configuration
+  <ul>
+    <li>
+      <strong>Current Interest Rate</strong> {{loan_config.interest_rate}}
+    </li>
+    <li>
+      <strong>Minimum Loan Amount</strong> {{loan_config.min_loan_amount}}
+    </li>
+    <li>
+      <strong>Maximum Loan Amount</strong> {{loan_config.max_loan_amount}}
+    </li>
+    <li><strong>Minimum Loan Term</strong> {{loan_config.min_loan_term}}</li>
+    <li><strong>Maximum Loan Term</strong> {{loan_config.max_loan_term}}</li>
+  </ul>
+</div>
+<div>
+  <form class="mt-4" method="POST" action="{% url 'loans:create'}">
+    {% csrf_token %} {% for field in form %}
+    <div class="mb-4">
+      <label
+        class="block text-gray-700 text-sm font-bold mb-2"
+        for="{{ field.id_for_label }}"
+      >
+        {{ field.label }}
+      </label>
+      {{ field }}
+    </div>
+    {% endfor %}
+    <button
+      class="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+    >
+      Submit
+    </button>
+  </form>
+</div>
 {%endblock%}
