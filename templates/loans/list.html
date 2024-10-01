@@ -2,22 +2,98 @@
 <h1>Loan List</h1>
 <section class="mt-4">
   <h2>Loans List</h2>
-  <ul>
-    {% for loan in loans %}
+  {% if user.is_bank_admin_user %}
+  <ul class="flex space-x-4">
     <li>
-      <p><strong>Loan ID:</strong> {{ loan.id }}</p>
-      <p><strong>Loan Amount:</strong> ${{ loan.amount }}</p>
-      <p><strong>Interest Rate:</strong> {{ loan.interest_rate }}%</p>
-      <p><strong>Loan Term:</strong> {{ loan.term }} months</p>
-      <p><strong>Created:</strong> {{ loan.created }}</p>
-      <p><strong>Updated:</strong> {{ loan.updated }}</p>
       <a
-        href="{% url 'loans:details' loan.id %}"
-        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >Details</a
+        class="text-yellow-500"
+        href="{% url 'loans:pending'%}"
+        class="hover:underline"
+        >Pending</a
       >
     </li>
-    {% endfor %}
+    <li>
+      <a
+        class="text-red-500"
+        href="{%url 'loans:rejected'%}"
+        class="hover:underline"
+        >Rejected</a
+      >
+    </li>
+    <li>
+      <a
+        class="text-green-500"
+        href="{%url 'loans:approved'%}"
+        class="hover:underline"
+        >Approved</a
+      >
+    </li>
   </ul>
+  {% endif %}
+  <table class="table-auto w-full">
+    <thead>
+      <tr>
+        <th class="px-4 py-2">Loan Amount</th>
+        <th class="px-4 py-2">Interest Rate</th>
+        <th class="px-4 py-2">Loan Term</th>
+        <th class="px-4 py-2">Status</th>
+        <th class="px-4 py-2">Created</th>
+        <th class="px-4 py-2">Updated</th>
+        <th class="px-4 py-2">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for loan in loans %}
+      <tr>
+        <td class="border px-4 py-2">${{ loan.amount }}</td>
+        <td class="border px-4 py-2">{{ loan.interest_rate }}%</td>
+        <td class="border px-4 py-2">{{ loan.duration }} years</td>
+        <td class="border px-4 py-2">
+          <span
+            class="font-bold py-1 px-2 rounded {% if loan.status == 'pending' %} bg-yellow-500 text-white {% elif loan.status == 'accepted' %} bg-green-500 text-white {% elif loan.status == 'rejected' %} bg-red-500 text-white {% else %} bg-gray-500 text-white {% endif %}"
+            >{{ loan.status }}</span
+          >
+        </td>
+        <td class="border px-4 py-2">{{ loan.created_at }}</td>
+        <td class="border px-4 py-2">{{ loan.updated_at }}</td>
+        <td class="border px-4 py-2">
+          <a
+            href="{% url 'loans:details' loan.id %}"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >Details</a
+          >
+          {% if user.is_bank_admin_user and loan.status == "pending" %}
+          <form
+            action="{% url 'loans:approve' loan.id %}"
+            method="post"
+            class="inline"
+          >
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Approve
+            </button>
+          </form>
+          <form
+            action="{% url 'loans:reject' loan.id %}"
+            method="post"
+            class="inline"
+          >
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Reject
+            </button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
 {%endblock%}

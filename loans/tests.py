@@ -1,10 +1,13 @@
-from django.test import TestCase
+from django.test import TestCase, Client
 from decimal import Decimal
 from .utils import (
     quantize_decimal,
     create_amortization_schedule,
     calculate_loan_details,
 )
+from django.urls import reverse
+from django.contrib.auth import get_user_model
+from .models import Loan, LoanConfig
 
 
 class LoanCalculationTestCase(TestCase):
@@ -81,3 +84,134 @@ class LoanCalculationTestCase(TestCase):
         # Test with one year duration
         one_year = calculate_loan_details(self.loan_amount, 1, self.interest_rate)
         self.assertEqual(one_year["number_of_payments"], 12)
+
+
+class LoanViewsTest(TestCase):
+
+    def setUp(self):
+        self.client = Client()
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            email="test@gmail.com", password="password", phone_number="1234567890"
+        )
+        self.bank_admin = User.objects.create_user(
+            email="admin@gmail.com",
+            password="password",
+            is_bank_admin_user=True,
+            phone_number="1234568890",
+        )
+        self.loan = Loan.objects.create(
+            user=self.user,
+            amount=Decimal("1000.00"),
+            duration=12,
+            interest_rate=LoanConfig.load().interest_rate,
+        )
+        self.testClient = Client()
+        self.testClient.login(email="test@gmail.com", password="password")
+        self.adminClient = Client()
+        self.adminClient.login(email="admin@gmail.com", password="password")
+
+    def test_list_loans(self):
+        response = self.testClient.get(reverse("loans:list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "loans/list.html")
+        self.assertContains(response, self.loan.amount)
+
+    def test_loan_detail(self):
+        response = self.testClient.get(reverse("loans:details", args=[self.loan.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "loans/details.html")
+        self.assertContains(response, self.loan.amount)
+        self.assertContains(response, self.user.email)
+
+    def test_create_loan(self):
+        response = self.testClient.post(
+            reverse("loans:create"),
+            {"amount": "1000.00", "duration": 12},
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_loan_amortization_schedule(self):
+        response = self.testClient.get(
+            reverse("loans:get_amortization_schedule"),
+            {"amount": "1000.00", "duration": 12},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+
+    def test_approve_loan(self):
+        response = self.adminClient.post(reverse("loans:approve", args=[self.loan.id]))
+        self.assertEqual(response.status_code, 302)
+
+    def test_approve_loan_not_admin(self):
+        response = self.testClient.post(reverse("loans:approve", args=[self.loan.id]))
+        self.assertRedirects(
+            response,
+            f"/users/login/?next={reverse('loans:approve', args=[self.loan.id])}",
+        )
+
+    def test_approve_loan_not_auth(self):
+        response = self.client.post(reverse("loans:approve", args=[self.loan.id]))
+        self.assertRedirects(
+            response,
+            f"/users/login/?next={reverse('loans:approve', args=[self.loan.id])}",
+        )
+
+    def test_reject_loan(self):
+        response = self.adminClient.post(reverse("loans:reject", args=[self.loan.id]))
+        self.assertEqual(response.status_code, 302)
+
+    def test_reject_loan_not_admin(self):
+        response = self.testClient.post(reverse("loans:reject", args=[self.loan.id]))
+        self.assertRedirects(
+            response,
+            f"/users/login/?next={reverse('loans:reject', args=[self.loan.id])}",
+        )
+
+    def test_reject_loan_not_auth(self):
+        response = self.client.post(reverse("loans:reject", args=[self.loan.id]))
+        self.assertRedirects(
+            response,
+            f"/users/login/?next={reverse('loans:reject', args=[self.loan.id])}",
+        )
+
+    def test_list_pending_loans(self):
+        response = self.adminClient.get(reverse("loans:pending"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "loans/list.html")
+
+    def test_list_pending_loans_not_admin(self):
+        response = self.testClient.get(reverse("loans:pending"))
+        self.assertRedirects(response, f"/users/login/?next={reverse('loans:pending')}")
+
+    def test_list_pending_loans_not_auth(self):
+        response = self.client.get(reverse("loans:pending"))
+        self.assertRedirects(response, f"/users/login/?next={reverse('loans:pending')}")
+
+    def test_list_approved_loans(self):
+        response = self.adminClient.get(reverse("loans:approved"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "loans/list.html")
+
+    def test_list_approved_loans_not_admin(self):
+        response = self.testClient.get(reverse("loans:approved"))
+        self.assertRedirects(
+            response, f"/users/login/?next={reverse('loans:approved')}"
+        )
+
+    def test_list_approved_loans_not_auth(self):
+        response = self.client.get(reverse("loans:approved"))
+        self.assertRedirects(
+            response, f"/users/login/?next={reverse('loans:approved')}"
+        )
+
+    def test_list_rejected_loans(self):
+        response = self.adminClient.get(reverse("loans:rejected"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "loans/list.html")
+
+    def test_list_rejected_loans_not_admin(self):
+        response = self.testClient.get(reverse("loans:rejected"))
+        self.assertRedirects(
+            response, f"/users/login/?next={reverse('loans:rejected')}"
+        )

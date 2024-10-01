@@ -3,14 +3,21 @@ from django.conf import settings
 from django.utils import timezone
 from .utils import create_amortization_schedule, calculate_loan_details
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 
 
 class LoanConfig(models.Model):
-    max_loan_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    min_loan_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    max_loan_duration = models.PositiveIntegerField()
-    min_loan_duration = models.PositiveIntegerField()
-    interest_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    max_loan_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=1000000.00
+    )
+    min_loan_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=1000.00
+    )
+    max_loan_duration = models.PositiveIntegerField(default=36)
+    min_loan_duration = models.PositiveIntegerField(default=1)
+    interest_rate = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0.07")
+    )
 
     def clean(self):
         if self.min_loan_amount >= self.max_loan_amount:
@@ -46,7 +53,7 @@ class Loan(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     duration = models.PositiveIntegerField()
     interest_rate = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -75,6 +82,9 @@ class Loan(models.Model):
     total_interest = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
+    total_payment = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
 
     def save(self, *args, **kwargs):
         if self.pk is None:
@@ -101,6 +111,7 @@ class Loan(models.Model):
         self.number_of_payments = loan_details["number_of_payments"]
         self.rate_per_period = loan_details["rate_per_period"]
         self.total_interest = loan_details["total_interest"]
+        self.total_payment = loan_details["total_payment"]
         self.save()
 
     def create_amortization_schedule(self):
@@ -125,7 +136,7 @@ class Loan(models.Model):
     def approve(self, user):
         if self.status != "pending":
             raise ValueError("Loan is not pending approval")
-        if not user.is_staff:
+        if not user.is_bank_admin_user and not user.is_staff:
             raise ValueError("Only staff can approve loans")
 
         self.status = "approved"
@@ -136,7 +147,7 @@ class Loan(models.Model):
     def reject(self, user):
         if self.status != "pending":
             raise ValueError("Loan is not pending approval")
-        if not user.is_staff:
+        if not user.is_staff and not user.is_bank_admin_user:
             raise ValueError("Only staff can reject loans")
         self.status = "rejected"
         self.rejected_at = timezone.now()
@@ -148,7 +159,9 @@ class Loan(models.Model):
 
 
 class AmortizationSchedule(models.Model):
-    loan = models.ForeignKey(Loan, on_delete=models.CASCADE)
+    loan = models.ForeignKey(
+        Loan, on_delete=models.CASCADE, related_name="amortization"
+    )
     year = models.PositiveIntegerField()
     cumulative_interest = models.DecimalField(max_digits=10, decimal_places=2)
     cumulative_principal = models.DecimalField(max_digits=10, decimal_places=2)

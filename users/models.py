@@ -28,6 +28,7 @@ class CustomUser(AbstractUser):
         max_length=15,
         unique=True,
     )
+    is_bank_admin_user = models.BooleanField(default=False)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["phone_number"]
