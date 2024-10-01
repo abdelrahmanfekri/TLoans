@@ -1,31 +1,38 @@
-name: Django Test
+name: Django Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  test:
+  build:
+
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: 3.7
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.7
+      uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install Dependencies
+        python-version: 3.7
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Linting
+    - name: Lint with flake8
       run: |
+        pip install flake8
         flake8
-    - name: Run Tests
+    - name: Coverage report
       run: |
-        python manage.py test
+        pip install coverage
+        coverage run manage.py test
+        coverage report
+    - name: Django Testing
+      run: |
+        python3 manage.py test
